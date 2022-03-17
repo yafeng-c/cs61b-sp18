@@ -1,7 +1,14 @@
-import java.util.List;
-import java.util.Objects;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.Comparator;
+import java.util.List;
+import java.util.PriorityQueue;
+import java.util.ArrayList;
+import java.util.Set;
+import java.util.HashSet;
+import java.util.Map;
+import java.util.HashMap;
+import java.util.Objects;
 
 /**
  * This class provides a shortestPath method for finding routes between two points
@@ -12,6 +19,18 @@ import java.util.regex.Pattern;
  * down to the priority you use to order your vertices.
  */
 public class Router {
+    private static class NodeComparator implements Comparator<GraphDB.Node> {
+        @Override
+        public int compare(GraphDB.Node n1, GraphDB.Node n2) {
+            if (n1.priority > n2.priority) {
+                return 1;
+            } else if (n1.priority < n2.priority) {
+                return -1;
+            } else {
+                return 0;
+            }
+        }
+    }
     /**
      * Return a List of longs representing the shortest path from the node
      * closest to a start location and the node closest to the destination
@@ -25,7 +44,53 @@ public class Router {
      */
     public static List<Long> shortestPath(GraphDB g, double stlon, double stlat,
                                           double destlon, double destlat) {
-        return null; // FIXME
+        PriorityQueue<GraphDB.Node> pq = new PriorityQueue(new NodeComparator());
+        List<Long> path = new ArrayList<>();
+        Set<Long> visited = new HashSet<>();
+        // distance from start point to current point
+        Map<Long, Double> disTo = new HashMap<>();
+        for (long key : g.vertices()) {
+            disTo.put(key, Double.MAX_VALUE);
+        }
+        Map<Long, Long> edgeTo = new HashMap<>();
+
+        long closestStart = g.closest(stlon, stlat);
+        long closestEnd = g.closest(destlon, destlat);
+
+        disTo.put(closestStart, 0.0);
+        GraphDB.Node start = g.getNode(closestStart);
+        start.setPriority(disTo.get(closestStart) + g.distance(closestStart, closestEnd));
+        pq.add(start);
+        while (pq.size() > 0) {
+            GraphDB.Node curr = pq.poll();
+            if (visited.contains(curr.id)) {
+                continue;
+            }
+            visited.add(curr.id);
+            if (curr.id == closestEnd) {
+                break;
+            }
+            for (long adj : curr.adjs) {
+                double dis = disTo.get(curr.id) + g.distance(curr.id, adj);
+                if (dis < disTo.get(adj)) {
+                    disTo.put(adj, dis);
+                    GraphDB.Node n = g.getNode(adj);
+                    n.setPriority(disTo.get(adj) + g.distance(adj, closestEnd));
+                    edgeTo.put(adj, curr.id);
+                    pq.add(n);
+                }
+            }
+        }
+        path.add(closestEnd);
+        while (closestEnd != closestStart) {
+            // cannot reach closestEnd
+            if (edgeTo.get(closestEnd) == null) {
+                return new ArrayList<>();
+            }
+            path.add(0, edgeTo.get(closestEnd));
+            closestEnd = edgeTo.get(closestEnd);
+        }
+        return path; // FIXME
     }
 
     /**

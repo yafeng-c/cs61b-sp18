@@ -51,7 +51,10 @@ public class TestGraphBuildingTiny {
         expected.add(55L);
         expected.add(41L);
         expected.add(66L);
-
+        System.out.println(graphTiny.distance(63L, 55L));
+        System.out.println(graphTiny.distance(63L, 66L));
+        System.out.println(graphTiny.distance(46L, 55L));
+        System.out.println(graphTiny.distance(46L, 66L));
         for (long neighbor : graphTiny.adjacent(v)) {
             actual.add(neighbor);
         }

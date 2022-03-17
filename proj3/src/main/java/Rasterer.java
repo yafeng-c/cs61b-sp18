@@ -8,9 +8,30 @@ import java.util.Map;
  * not draw the output correctly.
  */
 public class Rasterer {
+    private double ullon;
+    private double ullat;
+    private double lrlon;
+    private double lrlat;
+    private double INITLRLON;
+    private double INITULLON;
+    private double INITLRLAT;
+    private double INITULLAT;
+    private int TILESIZE;
+    private double[] lonDPPs;
 
     public Rasterer() {
         // YOUR CODE HERE
+        INITLRLON = MapServer.ROOT_LRLON;
+        INITULLON = MapServer.ROOT_ULLON;
+        INITLRLAT = MapServer.ROOT_LRLAT;
+        INITULLAT = MapServer.ROOT_ULLAT;
+        TILESIZE = MapServer.TILE_SIZE;
+        lonDPPs = new double[8];
+        lonDPPs[0] = (INITLRLON - INITULLON) / TILESIZE;
+        // smallest LonDPP, e.g. depth 7 images
+        for (int i = 1; i < 8; i++) {
+            lonDPPs[i] = lonDPPs[i - 1] / 2;
+        }
     }
 
     /**
@@ -44,9 +65,91 @@ public class Rasterer {
     public Map<String, Object> getMapRaster(Map<String, Double> params) {
         // System.out.println(params);
         Map<String, Object> results = new HashMap<>();
-        System.out.println("Since you haven't implemented getMapRaster, nothing is displayed in "
-                           + "your browser.");
+//        System.out.println("Since you haven't implemented getMapRaster, nothing is displayed in "
+//                           + "your browser.");
+        ullon = params.get("ullon");
+        ullat = params.get("ullat");
+        lrlon = params.get("lrlon");
+        lrlat = params.get("lrlat");
+        double width = params.get("w");
+        double height = params.get("h");
+
+        if (ullon >= INITLRLON || ullat <= INITLRLAT
+            || lrlon <= INITULLON || lrlat >= INITULLAT
+            || ullon >= lrlon || ullat <= lrlat) {
+            results.put("render_grid", null);
+            results.put("raster_ul_lon", 0);
+            results.put("raster_ul_lat", 0);
+            results.put("raster_lr_lon", 0);
+            results.put("raster_lr_lat", 0);
+            results.put("depth", 0);
+            results.put("query_success", false);
+            return results;
+        }
+        double reqLonDPP = (lrlon - ullon) / width;
+        int depth = getDepth(reqLonDPP);
+        // at the Dth level of zoom, there are 4^D images, with names
+        // ranging from dD_x0_y0 to dD_xk_yk, where k is 2^D - 1.
+        double k = Math.pow(2, depth) - 1;
+        // As x increases from 0 to k, we move eastwards,
+        // and as y increases from 0 to k, we move southwards.
+        // dD_x0_y0 longitude ranges from INITULLON to INITULLON + xStep
+        // latitude ranges from INITLRLAT to INITLRLAT + yStep
+        double xStep = (INITLRLON - INITULLON) / (k + 1);
+        double yStep = (INITLRLAT - INITULLAT) / (k + 1);
+        int xUL = 0, yUL = 0, xLR = 0, yLR = 0;
+        for (double i = INITULLON; i < INITLRLON; i += xStep) {
+            if (i <= ullon && ullon < i + xStep) {
+                break;
+            }
+            xUL++;
+        }
+        for (double i = INITULLAT; i > INITLRLAT; i += yStep) {
+            if (i >= ullat && ullat > i + yStep) {
+                break;
+            }
+            yUL++;
+        }
+        for (double i = INITULLON; i < INITLRLON; i += xStep) {
+            if (i <= lrlon && lrlon < i + xStep) {
+                break;
+            }
+            xLR++;
+        }
+        for (double i = INITULLAT; i > INITLRLAT; i += yStep) {
+            if (i >= lrlat && lrlat > i + yStep) {
+                break;
+            }
+            yLR++;
+        }
+        String[][] files = new String[yLR - yUL + 1][xLR - xUL + 1];
+        for (int y = yUL; y <= yLR; y++) {
+            for (int x = xUL; x <= xLR; x++) {
+                files[y - yUL][x - xUL] = "d" + depth + "_x" + x + "_y" + y + ".png";
+            }
+        }
+        results.put("render_grid", files);
+        results.put("raster_ul_lon", INITULLON + xUL * xStep);
+        results.put("raster_ul_lat", INITULLAT + yUL * yStep);
+        results.put("raster_lr_lon", INITULLON + (xLR + 1) * xStep);
+        results.put("raster_lr_lat", INITULLAT + (yLR + 1) * yStep);
+        results.put("depth", depth);
+        results.put("query_success", true);
         return results;
+    }
+
+    private int getDepth(double reqLonDPP) {
+        int depth = 0;
+        for (double l : lonDPPs) {
+            if (reqLonDPP > l) {
+                break;
+            }
+            depth++;
+        }
+        if (depth == lonDPPs.length) {
+            depth -= 1;
+        }
+        return depth;
     }
 
 }
