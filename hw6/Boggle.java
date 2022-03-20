@@ -1,11 +1,17 @@
-import java.util.*;
+import java.util.List;
+import java.util.Set;
+import java.util.Arrays;
+import java.util.ArrayList;
+import java.util.TreeSet;
+import java.util.Comparator;
 
 public class Boggle {
     
     // File path of dictionary file
     static String dictPath = "trivial_words.txt";
-    static private TrieNode root;
-    static private int[][] dirs = {{-1, 0}, {0, -1}, {1, 0},
+    static TrieNode root;
+    static int[][] dirs = {
+            {-1, 0}, {0, -1}, {1, 0},
             {0, 1}, {-1, -1}, {-1, 1}, {1, -1}, {1, 1}};
     /**
      * Solves a Boggle puzzle.
@@ -27,7 +33,7 @@ public class Boggle {
         if (!wordFile.exists()) {
             throw new IllegalArgumentException();
         }
-        while(wordFile.hasNextLine()) {
+        while (wordFile.hasNextLine()) {
             root.insert(wordFile.readLine());
         }
 
